@@ -1,4 +1,4 @@
-module netplan
+module github.com/pancakeDX/netplan
 
 go 1.21
 
