@@ -2,6 +2,7 @@ package netplan
 
 import (
 	"errors"
+	"fmt"
 	"net"
 )
 
@@ -35,10 +36,7 @@ func (i *IP) UnmarshalYAML(unmarshal func(interface{}) error) error {
 }
 
 func (i IP) MarshalYAML() (interface{}, error) {
-	if i.CIDR != nil {
-		return i.CIDR.String(), nil
-	}
-	return i.IP.String(), nil
+	return i.String(), nil
 }
 
 func (i IP) IsCIDR() bool {
@@ -47,7 +45,8 @@ func (i IP) IsCIDR() bool {
 
 func (i IP) String() string {
 	if i.CIDR != nil {
-		return i.CIDR.String()
+		ones, _ := i.CIDR.Mask.Size()
+		return fmt.Sprintf("%s/%d", i.IP.String(), ones)
 	}
 	return i.IP.String()
 }
