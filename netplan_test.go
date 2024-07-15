@@ -2,6 +2,7 @@ package netplan
 
 import (
 	gnet "net"
+	"os"
 	"reflect"
 	"testing"
 
@@ -205,5 +206,36 @@ func TestSetAddrs(t *testing.T) {
 
 	if !chk {
 		t.Errorf("cannot set addrs. error: %s", err)
+	}
+}
+
+func TestReadFile(t *testing.T) {
+	file, err := os.CreateTemp("", "testreadfile")
+	if err != nil {
+		t.Errorf("cannot create temp file. error: %s", err)
+	}
+	err = os.WriteFile(file.Name(), []byte(config), os.FileMode(int(644)))
+	if err != nil {
+		t.Errorf("cannot create temp file. error: %s", err)
+	}
+
+	nc, err := ReadFile(file.Name())
+	if err != nil {
+		t.Errorf("cannot read config file. error: %s", err)
+	}
+
+	if v, ok := nc.Network.Vlans["vlan100"]; !ok {
+		t.Error("invalid config")
+	} else {
+		chk := false
+		chkip := "8.8.8.8"
+		for _, a := range v.Nameservers.Addresses {
+			if a.String() == chkip {
+				chk = true
+			}
+		}
+		if !chk {
+			t.Error("invalid config")
+		}
 	}
 }

@@ -37,6 +37,24 @@ func Read(config []byte) (*NetplanConfig, error) {
 	return &readConfig, nil
 }
 
+func ReadFile(configPath string) (*NetplanConfig, error) {
+	if _, err := os.Stat(configPath); errors.Is(err, os.ErrNotExist) {
+		return nil, fmt.Errorf("config file does not exist: %s", configPath)
+	}
+
+	config, err := os.ReadFile(configPath)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read config file. error: %s", err)
+	}
+
+	nc, err := Read(config)
+	if err != nil {
+		return nil, err
+	}
+
+	return nc, nil
+}
+
 func Write(config *NetplanConfig) ([]byte, error) {
 	bytes, err := yaml.Marshal(config)
 	if err != nil {
