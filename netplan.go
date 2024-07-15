@@ -3,6 +3,7 @@ package netplan
 import (
 	"errors"
 	"fmt"
+	gnet "net"
 	"os"
 
 	"gopkg.in/yaml.v2"
@@ -123,7 +124,31 @@ func (nc *NetplanConfig) GetAddr(name string, ips []IP) ([]IP, error) {
 func (nc *NetplanConfig) SetAddr(name string, ips []IP) error {
 	objs := nc.Flatten()
 	if _, ok := objs[name]; !ok {
-		return fmt.Errorf("interface not found: %s", name)
+		ifaces, err := gnet.Interfaces()
+		if err != nil {
+			return fmt.Errorf("error getting interface: %s", err)
+		}
+		chk := false
+		var ifType InterfaceType
+		for _, iface := range ifaces {
+			if iface.Name == name {
+				ifType, _ = getInterfaceType(iface.Name)
+				chk = true
+			}
+		}
+		if !chk {
+			return fmt.Errorf("interface not found: %s", name)
+		}
+
+		if ifType == InterfaceTypeEthernet {
+			objs[name] = &Ethernet{}
+		} else if ifType == InterfaceTypeBonding {
+			objs[name] = &Bond{}
+		} else if ifType == InterfaceTypeVLAN {
+			objs[name] = &Vlan{}
+		} else {
+			return fmt.Errorf("unsupported interface type: %s", name)
+		}
 	}
 
 	// update ips
