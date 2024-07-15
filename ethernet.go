@@ -24,3 +24,7 @@ func (e *Ethernet) GetNS() []IP {
 func (e *Ethernet) SetDhcp4(enable bool) {
 	e.Dhcp4 = enable
 }
+
+func (e *Ethernet) SetGateway4(ip IP) {
+	e.Gateway4 = ip
+}

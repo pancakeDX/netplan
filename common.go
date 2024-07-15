@@ -3,7 +3,7 @@ package netplan
 // Common represents the common fields for various network configurations
 type Common struct {
 	Addresses   []IP        `yaml:"addresses,omitempty"`
-	Gateway4    string      `yaml:"gateway4,omitempty"`
+	Gateway4    IP          `yaml:"gateway4,omitempty"`
 	Nameservers Nameservers `yaml:"nameservers,omitempty"`
 	Dhcp4       bool        `yaml:"dhcp4,omitempty"`
 	Dhcp6       bool        `yaml:"dhcp6,omitempty"`
@@ -22,4 +22,6 @@ type Layout interface {
 	GetNS() []IP
 
 	SetDhcp4(enable bool)
+
+	SetGateway4(ip IP)
 }

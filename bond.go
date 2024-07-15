@@ -95,3 +95,7 @@ func (b *Bond) GetNS() []IP {
 func (b *Bond) SetDhcp4(enable bool) {
 	b.Dhcp4 = enable
 }
+
+func (b *Bond) SetGateway4(ip IP) {
+	b.Gateway4 = ip
+}

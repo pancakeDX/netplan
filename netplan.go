@@ -270,3 +270,49 @@ func (nc *NetplanConfig) SetDhcp4(name string, enable bool) error {
 
 	return nil
 }
+
+func (nc *NetplanConfig) SetGateway4(name string, ip IP) error {
+	if ip.IsCIDR() {
+		return fmt.Errorf("invalid IP (%s), it should not be CIDR", ip)
+	}
+
+	objs := nc.Flatten()
+	if _, ok := objs[name]; !ok {
+		ifaces, err := gnet.Interfaces()
+		if err != nil {
+			return fmt.Errorf("error getting interface: %s", err)
+		}
+		chk := false
+		var ifType InterfaceType
+		for _, iface := range ifaces {
+			if iface.Name == name {
+				ifType, _ = getInterfaceType(iface.Name)
+				chk = true
+			}
+		}
+		if !chk {
+			return fmt.Errorf("interface not found: %s", name)
+		}
+
+		if ifType == InterfaceTypeEthernet {
+			objs[name] = &Ethernet{}
+		} else if ifType == InterfaceTypeBonding {
+			objs[name] = &Bond{}
+		} else if ifType == InterfaceTypeVLAN {
+			objs[name] = &Vlan{}
+		} else {
+			return fmt.Errorf("unsupported interface type: %s", name)
+		}
+	}
+
+	// update ips
+	objs[name].SetGateway4(ip)
+
+	newConfig, err := GetConfig(objs)
+	if err != nil {
+		return fmt.Errorf("error creating config: %s", err)
+	}
+	*nc = *newConfig
+
+	return nil
+}

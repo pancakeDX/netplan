@@ -24,3 +24,7 @@ func (v *Vlan) GetNS() []IP {
 func (v *Vlan) SetDhcp4(enable bool) {
 	v.Dhcp4 = enable
 }
+
+func (v *Vlan) SetGateway4(ip IP) {
+	v.Gateway4 = ip
+}
