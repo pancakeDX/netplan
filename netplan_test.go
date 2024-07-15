@@ -1,7 +1,7 @@
 package netplan
 
 import (
-	"net"
+	gnet "net"
 	"reflect"
 	"testing"
 
@@ -52,8 +52,8 @@ var (
 					Common: Common{
 						Nameservers: Nameservers{
 							Addresses: []IP{
-								{IP: net.ParseIP("8.8.8.8")},
-								{IP: net.ParseIP("8.8.4.4")},
+								{IP: gnet.ParseIP("8.8.8.8")},
+								{IP: gnet.ParseIP("8.8.4.4")},
 							},
 						},
 					},
@@ -83,13 +83,13 @@ func TestWrite(t *testing.T) {
 }
 
 func TestGetConfig(t *testing.T) {
-	c := map[string]interface{}{}
+	c := map[string]Layout{}
 	eth0 := Ethernet{}
 	eth1 := Ethernet{}
 	ns := Nameservers{
 		Addresses: []IP{
-			{IP: net.ParseIP("8.8.8.8")},
-			{IP: net.ParseIP("8.8.4.4")},
+			{IP: gnet.ParseIP("8.8.8.8")},
+			{IP: gnet.ParseIP("8.8.4.4")},
 		},
 	}
 	bond0 := Bond{
@@ -103,10 +103,10 @@ func TestGetConfig(t *testing.T) {
 	vlan100.Nameservers = ns
 
 	// append all to map
-	c["eth0"] = eth0
-	c["eth1"] = eth1
-	c["bond0"] = bond0
-	c["vlan100"] = vlan100
+	c["eth0"] = &eth0
+	c["eth1"] = &eth1
+	c["bond0"] = &bond0
+	c["vlan100"] = &vlan100
 
 	nc, err := GetConfig(c)
 	if err != nil {
@@ -116,5 +116,94 @@ func TestGetConfig(t *testing.T) {
 	eq := reflect.DeepEqual(*nc, netplanConfig)
 	if !eq {
 		t.Error("invalid config")
+	}
+}
+
+func TestFlatten(t *testing.T) {
+	c := map[string]Layout{}
+	eth0 := Ethernet{}
+	ip, _ := ParseIP("1.2.3.4")
+	eth0.Addresses = []IP{*ip}
+	c["eth0"] = &eth0
+
+	nc, err := GetConfig(c)
+	if err != nil {
+		t.Errorf("cannot get config. error: %s", err)
+	}
+
+	ncFlat := nc.Flatten()
+	if _, ok := ncFlat["eth0"]; !ok {
+		t.Errorf("cannot get config from flat config. error: %s", err)
+	}
+
+	chkIP, _ := ParseIP("1.2.3.4")
+	chk := false
+	for _, addr := range ncFlat["eth0"].GetAddrs() {
+		if addr.String() == chkIP.String() {
+			chk = true
+		}
+	}
+
+	if !chk {
+		t.Error("invalid flat config.")
+	}
+}
+
+func TestGetAddrs(t *testing.T) {
+	c := map[string]Layout{}
+	eth0 := Ethernet{}
+	ip, _ := ParseIP("192.168.0.1")
+	eth0.Addresses = []IP{*ip}
+	c["eth0"] = &eth0
+
+	nc, err := GetConfig(c)
+	if err != nil {
+		t.Errorf("cannot get config. error: %s", err)
+	}
+
+	ncFlat := nc.Flatten()
+	addrs := ncFlat["eth0"].GetAddrs()
+	chkIP, _ := ParseIP("192.168.0.1")
+	chk := false
+	for _, addr := range addrs {
+		if addr.String() == chkIP.String() {
+			chk = true
+		}
+	}
+
+	if !chk {
+		t.Errorf("cannot get addrs. error: %s", err)
+	}
+}
+
+func TestSetAddrs(t *testing.T) {
+	c := map[string]Layout{}
+	eth0 := Ethernet{}
+	ip, _ := ParseIP("192.168.0.1")
+	eth0.Addresses = []IP{*ip}
+	c["eth0"] = &eth0
+
+	nc, err := GetConfig(c)
+	if err != nil {
+		t.Errorf("cannot get config. error: %s", err)
+	}
+
+	ncFlat := nc.Flatten()
+	newIP, _ := ParseIP("10.234.5.7")
+	ncFlat["eth0"].UpdateAddrs([]IP{*newIP})
+	chk := false
+	addrs := ncFlat["eth0"].GetAddrs()
+	for _, addr := range addrs {
+		if addr.String() == newIP.String() {
+			chk = true
+		}
+		// ips should be updated.
+		if addr.String() == ip.String() {
+			chk = false
+		}
+	}
+
+	if !chk {
+		t.Errorf("cannot set addrs. error: %s", err)
 	}
 }

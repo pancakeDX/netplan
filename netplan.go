@@ -3,6 +3,7 @@ package netplan
 import (
 	"errors"
 	"fmt"
+	"os"
 
 	"gopkg.in/yaml.v2"
 )
@@ -26,106 +27,6 @@ type Netplan struct {
 	Vlans     map[string]Vlan     `yaml:"vlans,omitempty"`
 }
 
-// Common represents the common fields for various network configurations
-type Common struct {
-	Addresses   []IP        `yaml:"addresses,omitempty"`
-	Gateway4    string      `yaml:"gateway4,omitempty"`
-	Nameservers Nameservers `yaml:"nameservers,omitempty"`
-	Dhcp4       bool        `yaml:"dhcp4,omitempty"`
-	Dhcp6       bool        `yaml:"dhcp6,omitempty"`
-}
-
-// Ethernet represents an ethernet interface
-type Ethernet struct {
-	Common `yaml:",inline"`
-}
-
-// Bond represents a bond interface
-type Bond struct {
-	Common     `yaml:",inline"`
-	Interfaces []string       `yaml:"interfaces,omitempty"`
-	Parameters BondParameters `yaml:"parameters,omitempty"`
-}
-
-// BondParameters represents the parameters for a bond interface
-type BondParameters struct {
-	Mode               BondMode `yaml:"mode,omitempty"`
-	MiiMonitorInterval int      `yaml:"mii-monitor-interval,omitempty"`
-	TransmitHashPolicy string   `yaml:"transmit-hash-policy,omitempty"`
-}
-
-// Vlan represents a vlan interface
-type Vlan struct {
-	Common `yaml:",inline"`
-	ID     int    `yaml:"id,omitempty"`
-	Link   string `yaml:"link,omitempty"`
-}
-
-// Nameservers represents the nameservers configuration for a vlan interface
-type Nameservers struct {
-	Addresses []IP `yaml:"addresses,omitempty"`
-}
-
-type BondMode int
-
-const BondModeUnknown BondMode = -1
-
-const (
-	BondModeBalanceRR BondMode = iota
-	BondModeActiveBackup
-	BondModeBalanceXor
-	BondModeBroadcast
-	BondMode8023ad
-	BondModeBalanceTlb
-	BondModeBalanceAlb
-)
-
-var bondModeToString = map[BondMode]string{
-	BondModeBalanceRR:    "balance-rr",
-	BondModeActiveBackup: "active-backup",
-	BondModeBalanceXor:   "balance-xor",
-	BondModeBroadcast:    "broadcast",
-	BondMode8023ad:       "802.3ad",
-	BondModeBalanceTlb:   "balance-tlb",
-	BondModeBalanceAlb:   "balance-alb",
-}
-
-var stringToBondMode = map[string]BondMode{
-	"balance-rr":    BondModeBalanceRR,
-	"active-backup": BondModeActiveBackup,
-	"balance-xor":   BondModeBalanceXor,
-	"broadcast":     BondModeBroadcast,
-	"802.3ad":       BondMode8023ad,
-	"balance-tlb":   BondModeBalanceTlb,
-	"balance-alb":   BondModeBalanceAlb,
-}
-
-func (b *BondMode) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	var str string
-	if err := unmarshal(&str); err != nil {
-		return err
-	}
-
-	mode, ok := stringToBondMode[str]
-	if !ok {
-		*b = BondModeUnknown
-		return errors.New("unknown bond mode")
-	}
-
-	*b = mode
-	return nil
-
-}
-
-func (b BondMode) MarshalYAML() (interface{}, error) {
-	mode, ok := bondModeToString[b]
-	if !ok {
-		return "", errors.New("unknown bond mode")
-	}
-
-	return mode, nil
-}
-
 func Read(config []byte) (*NetplanConfig, error) {
 	var readConfig NetplanConfig
 	err := yaml.Unmarshal(config, &readConfig)
@@ -144,7 +45,7 @@ func Write(config *NetplanConfig) ([]byte, error) {
 	return bytes, nil
 }
 
-func GetConfig(objs map[string]interface{}) (*NetplanConfig, error) {
+func GetConfig(objs map[string]Layout) (*NetplanConfig, error) {
 	n := &NetplanConfig{
 		Network: Netplan{
 			Version:   DefaultConfigVersion,
@@ -157,16 +58,64 @@ func GetConfig(objs map[string]interface{}) (*NetplanConfig, error) {
 
 	for name, i := range objs {
 		switch v := i.(type) {
-		case Bond:
-			n.Network.Bonds[name] = i.(Bond)
-		case Ethernet:
-			n.Network.Ethernets[name] = i.(Ethernet)
-		case Vlan:
-			n.Network.Vlans[name] = i.(Vlan)
+		case *Bond:
+			n.Network.Bonds[name] = *v
+		case *Ethernet:
+			n.Network.Ethernets[name] = *v
+		case *Vlan:
+			n.Network.Vlans[name] = *v
 		default:
 			return nil, fmt.Errorf("invalid type: %s", v)
 		}
 	}
 
 	return n, nil
+}
+
+func (nc *NetplanConfig) Flatten() map[string]Layout {
+	objs := make(map[string]Layout)
+
+	// Ethernets
+	for n, o := range nc.Network.Ethernets {
+		objs[n] = &o
+	}
+
+	// Bonding
+	for n, o := range nc.Network.Bonds {
+		objs[n] = &o
+	}
+
+	// Vlan
+	for n, o := range nc.Network.Vlans {
+		objs[n] = &o
+	}
+
+	return objs
+}
+
+func (nc *NetplanConfig) GetAddr(name string, ips []IP) ([]IP, error) {
+	objs := nc.Flatten()
+	if _, ok := objs[name]; !ok {
+		return nil, fmt.Errorf("interface not found: %s", name)
+	}
+
+	return objs[name].GetAddrs(), nil
+}
+
+func (nc *NetplanConfig) SetAddr(name string, ips []IP) error {
+	objs := nc.Flatten()
+	if _, ok := objs[name]; !ok {
+		return fmt.Errorf("interface not found: %s", name)
+	}
+
+	// update ips
+	objs[name].UpdateAddrs(ips)
+
+	newConfig, err := GetConfig(objs)
+	if err != nil {
+		return fmt.Errorf("error creating config: %s", err)
+	}
+	*nc = *newConfig
+
+	return nil
 }
