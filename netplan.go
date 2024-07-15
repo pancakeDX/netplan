@@ -96,17 +96,20 @@ func (nc *NetplanConfig) Flatten() map[string]Layout {
 
 	// Ethernets
 	for n, o := range nc.Network.Ethernets {
-		objs[n] = &o
+		newO := o
+		objs[n] = &newO
 	}
 
 	// Bonding
 	for n, o := range nc.Network.Bonds {
-		objs[n] = &o
+		newO := o
+		objs[n] = &newO
 	}
 
 	// Vlan
 	for n, o := range nc.Network.Vlans {
-		objs[n] = &o
+		newO := o
+		objs[n] = &newO
 	}
 
 	return objs
