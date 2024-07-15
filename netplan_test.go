@@ -76,7 +76,7 @@ func TestRead(t *testing.T) {
 }
 
 func TestWrite(t *testing.T) {
-	bytes, err := Write(&netplanConfig)
+	bytes, err := netplanConfig.Write()
 	if err != nil {
 		t.Errorf("cannot write config. error: %v", err)
 	}

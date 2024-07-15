@@ -56,12 +56,30 @@ func ReadFile(configPath string) (*NetplanConfig, error) {
 	return nc, nil
 }
 
-func Write(config *NetplanConfig) ([]byte, error) {
-	bytes, err := yaml.Marshal(config)
+func (nc *NetplanConfig) Write() ([]byte, error) {
+	bytes, err := yaml.Marshal(nc)
 	if err != nil {
 		return []byte{}, fmt.Errorf("cannot write config file. error: %s", err)
 	}
 	return bytes, nil
+}
+
+func (nc *NetplanConfig) WriteFile(configPath string) error {
+	if _, err := os.Stat(configPath); errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("config file does not exist: %s", configPath)
+	}
+
+	bytes, err := nc.Write()
+	if err != nil {
+		return fmt.Errorf("cannot write config file. error: %s", err)
+	}
+
+	err = os.WriteFile(configPath, bytes, os.FileMode(int(0644)))
+	if err != nil {
+		return fmt.Errorf("cannot write config file. error: %s", err)
+	}
+
+	return nil
 }
 
 func GetConfig(objs map[string]Layout) (*NetplanConfig, error) {
