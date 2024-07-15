@@ -20,3 +20,7 @@ func (v *Vlan) UpdateNS(ips []IP) {
 func (v *Vlan) GetNS() []IP {
 	return v.Nameservers.Addresses
 }
+
+func (v *Vlan) SetDhcp4(enable bool) {
+	v.Dhcp4 = enable
+}

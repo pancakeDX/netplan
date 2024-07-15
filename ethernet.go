@@ -20,3 +20,7 @@ func (e *Ethernet) UpdateNS(ips []IP) {
 func (e *Ethernet) GetNS() []IP {
 	return e.Nameservers.Addresses
 }
+
+func (e *Ethernet) SetDhcp4(enable bool) {
+	e.Dhcp4 = enable
+}

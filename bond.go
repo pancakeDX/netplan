@@ -91,3 +91,7 @@ func (b *Bond) UpdateNS(ips []IP) {
 func (b *Bond) GetNS() []IP {
 	return b.Nameservers.Addresses
 }
+
+func (b *Bond) SetDhcp4(enable bool) {
+	b.Dhcp4 = enable
+}

@@ -20,4 +20,6 @@ type Layout interface {
 
 	UpdateNS(ips []IP)
 	GetNS() []IP
+
+	SetDhcp4(enable bool)
 }
