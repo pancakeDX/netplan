@@ -83,3 +83,11 @@ func (b *Bond) UpdateAddrs(ips []IP) {
 func (b *Bond) GetAddrs() []IP {
 	return b.Addresses
 }
+
+func (b *Bond) UpdateNS(ips []IP) {
+	b.Nameservers.Addresses = ips
+}
+
+func (b *Bond) GetNS() []IP {
+	return b.Nameservers.Addresses
+}

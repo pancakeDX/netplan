@@ -17,4 +17,7 @@ type Nameservers struct {
 type Layout interface {
 	UpdateAddrs(ips []IP)
 	GetAddrs() []IP
+
+	UpdateNS(ips []IP)
+	GetNS() []IP
 }

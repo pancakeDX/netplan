@@ -13,3 +13,10 @@ func (v *Vlan) UpdateAddrs(ips []IP) {
 func (v *Vlan) GetAddrs() []IP {
 	return v.Addresses
 }
+
+func (v *Vlan) UpdateNS(ips []IP) {
+	v.Nameservers.Addresses = ips
+}
+func (v *Vlan) GetNS() []IP {
+	return v.Nameservers.Addresses
+}

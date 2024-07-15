@@ -122,6 +122,12 @@ func (nc *NetplanConfig) GetAddr(name string, ips []IP) ([]IP, error) {
 }
 
 func (nc *NetplanConfig) SetAddr(name string, ips []IP) error {
+	for _, ip := range ips {
+		if !ip.IsCIDR() {
+			return fmt.Errorf("invalid IP (%s), it should be CIDR", ip)
+		}
+	}
+
 	objs := nc.Flatten()
 	if _, ok := objs[name]; !ok {
 		ifaces, err := gnet.Interfaces()
@@ -153,6 +159,63 @@ func (nc *NetplanConfig) SetAddr(name string, ips []IP) error {
 
 	// update ips
 	objs[name].UpdateAddrs(ips)
+
+	newConfig, err := GetConfig(objs)
+	if err != nil {
+		return fmt.Errorf("error creating config: %s", err)
+	}
+	*nc = *newConfig
+
+	return nil
+}
+
+func (nc *NetplanConfig) GetNS(name string, ips []IP) ([]IP, error) {
+	objs := nc.Flatten()
+	if _, ok := objs[name]; !ok {
+		return nil, fmt.Errorf("interface not found: %s", name)
+	}
+
+	return objs[name].GetNS(), nil
+}
+
+func (nc *NetplanConfig) SetNS(name string, ips []IP) error {
+	for _, ip := range ips {
+		if ip.IsCIDR() {
+			return fmt.Errorf("invalid IP (%s), it should not be CIDR", ip)
+		}
+	}
+
+	objs := nc.Flatten()
+	if _, ok := objs[name]; !ok {
+		ifaces, err := gnet.Interfaces()
+		if err != nil {
+			return fmt.Errorf("error getting interface: %s", err)
+		}
+		chk := false
+		var ifType InterfaceType
+		for _, iface := range ifaces {
+			if iface.Name == name {
+				ifType, _ = getInterfaceType(iface.Name)
+				chk = true
+			}
+		}
+		if !chk {
+			return fmt.Errorf("interface not found: %s", name)
+		}
+
+		if ifType == InterfaceTypeEthernet {
+			objs[name] = &Ethernet{}
+		} else if ifType == InterfaceTypeBonding {
+			objs[name] = &Bond{}
+		} else if ifType == InterfaceTypeVLAN {
+			objs[name] = &Vlan{}
+		} else {
+			return fmt.Errorf("unsupported interface type: %s", name)
+		}
+	}
+
+	// update ips
+	objs[name].UpdateNS(ips)
 
 	newConfig, err := GetConfig(objs)
 	if err != nil {

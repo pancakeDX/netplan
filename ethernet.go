@@ -12,3 +12,11 @@ func (e *Ethernet) UpdateAddrs(ips []IP) {
 func (e *Ethernet) GetAddrs() []IP {
 	return e.Addresses
 }
+
+func (e *Ethernet) UpdateNS(ips []IP) {
+	e.Nameservers.Addresses = ips
+}
+
+func (e *Ethernet) GetNS() []IP {
+	return e.Nameservers.Addresses
+}
