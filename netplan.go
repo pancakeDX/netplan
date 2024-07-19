@@ -164,7 +164,7 @@ func (nc *NetplanConfig) SetAddr(name string, ips []IP) error {
 			}
 		}
 		if !chk {
-			return fmt.Errorf("interface not found: %s", name)
+		return fmt.Errorf("interface not found: %s", name)
 		}
 
 		if ifType == InterfaceTypeEthernet {
@@ -221,7 +221,7 @@ func (nc *NetplanConfig) SetNS(name string, ips []IP) error {
 			}
 		}
 		if !chk {
-			return fmt.Errorf("interface not found: %s", name)
+		return fmt.Errorf("interface not found: %s", name)
 		}
 
 		if ifType == InterfaceTypeEthernet {
@@ -263,7 +263,7 @@ func (nc *NetplanConfig) SetDhcp4(name string, enable bool) error {
 			}
 		}
 		if !chk {
-			return fmt.Errorf("interface not found: %s", name)
+		return fmt.Errorf("interface not found: %s", name)
 		}
 
 		if ifType == InterfaceTypeEthernet {
@@ -309,7 +309,7 @@ func (nc *NetplanConfig) SetGateway4(name string, ip IP) error {
 			}
 		}
 		if !chk {
-			return fmt.Errorf("interface not found: %s", name)
+		return fmt.Errorf("interface not found: %s", name)
 		}
 
 		if ifType == InterfaceTypeEthernet {
@@ -326,6 +326,84 @@ func (nc *NetplanConfig) SetGateway4(name string, ip IP) error {
 	// update ips
 	objs[name].SetGateway4(ip)
 
+	newConfig, err := GetConfig(objs)
+	if err != nil {
+		return fmt.Errorf("error creating config: %s", err)
+	}
+	*nc = *newConfig
+
+	return nil
+}
+
+func (nc *NetplanConfig) AddBond(name, confInterface string, interfaces []string) error {
+	if name == "" || confInterface == "" {
+		return errors.New("invalid interface")
+	}
+	if len(interfaces) == 0 {
+		return errors.New("empty interface(s)")
+	}
+	if !slices.Contains(interfaces, confInterface) {
+		return errors.New("configuration interface must be included within the interfaces")
+	}
+
+	objs := nc.Flatten()
+	var chkIfaces []string
+	copy(chkIfaces, interfaces)
+	for n := range objs {
+		if idx := slices.Index(chkIfaces, n); idx != -1 {
+			chkIfaces = append(chkIfaces[:idx], chkIfaces[idx+1:]...)
+		}
+	}
+	if len(chkIfaces) > 0 {
+		return fmt.Errorf("interface(s) not found: %s", strings.Join(chkIfaces, ", "))
+	}
+
+	if _, ok := objs[confInterface]; !ok {
+		return fmt.Errorf("config interface not found: %s", confInterface)
+	}
+
+	b := &Bond{}
+	b.Interfaces = interfaces
+	b.Copy(objs[confInterface])
+	objs[name] = b
+	objs[confInterface] = &Ethernet{}
+
+	newConfig, err := GetConfig(objs)
+	if err != nil {
+		return fmt.Errorf("error creating config: %s", err)
+	}
+	*nc = *newConfig
+
+	return nil
+}
+
+func (nc *NetplanConfig) GetBond(name string) (*Bond, error) {
+	for n, o := range nc.Network.Bonds {
+		if n == name {
+			return &o, nil
+		}
+	}
+
+	return nil, fmt.Errorf("bond not found:%s", name)
+}
+
+func (nc *NetplanConfig) RemoveBond(name, confInterface string) error {
+	objs := nc.Flatten()
+
+	if _, ok := objs[name]; !ok {
+		return fmt.Errorf("bonding not found: %s", name)
+	}
+
+	var b Bond
+	switch v := objs[name].(type) {
+	case *Bond:
+		b = *v
+	default:
+		return fmt.Errorf("interface is not bonding: %s", name)
+	}
+
+	objs[confInterface] = b.Dump()
+	delete(objs, name)
 	newConfig, err := GetConfig(objs)
 	if err != nil {
 		return fmt.Errorf("error creating config: %s", err)

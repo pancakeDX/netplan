@@ -4,6 +4,7 @@ import (
 	gnet "net"
 	"os"
 	"reflect"
+	"strings"
 	"testing"
 
 	"gotest.tools/assert"
@@ -237,5 +238,98 @@ func TestReadFile(t *testing.T) {
 		if !chk {
 			t.Error("invalid config")
 		}
+	}
+}
+
+func TestAddBond(t *testing.T) {
+	nc, _ := GetConfig(nil)
+	// invalid config interface
+	err := nc.AddBond("test", "", []string{})
+	if err != nil {
+		if !strings.Contains(err.Error(), "invalid interface") {
+			t.Errorf("invalid error: %s", err)
+		}
+	} else {
+		t.Error("failed to properly capture error")
+	}
+
+	// invalid bonding name
+	err = nc.AddBond("", "test", []string{})
+	if err != nil {
+		if !strings.Contains(err.Error(), "invalid interface") {
+			t.Errorf("invalid error: %s", err)
+		}
+	} else {
+		t.Error("failed to properly capture error")
+	}
+
+	// empty interfaces
+	err = nc.AddBond("test", "test", []string{})
+	if err != nil {
+		if !strings.Contains(err.Error(), "empty interface") {
+			t.Errorf("invalid error: %s", err)
+		}
+	} else {
+		t.Error("failed to properly capture error")
+	}
+
+	err = nc.AddBond("test", "test", []string{"test2"})
+	if err != nil {
+		if !strings.Contains(err.Error(), "included within the interface") {
+			t.Errorf("invalid error: %s", err)
+		}
+	} else {
+		t.Error("failed to properly capture error")
+	}
+
+	c := map[string]Layout{}
+	ip, _ := ParseIP("192.168.1.100")
+	eth0 := &Ethernet{}
+	eth0.Addresses = []IP{*ip}
+	c["eth0"] = eth0
+
+	nc, _ = GetConfig(c)
+	// eth1 not found
+	err = nc.AddBond("bond0", "eth0", []string{"eth0", "eth1"})
+	if err != nil {
+		if !strings.Contains(err.Error(), "not found") {
+			t.Errorf("cannot add bond: %s", err)
+		}
+	}
+
+	c["eth1"] = &Ethernet{}
+	nc, _ = GetConfig(c)
+	err = nc.AddBond("bond0", "eth0", []string{"eth0", "eth1"})
+	if err != nil {
+		t.Errorf("cannot add bond: %s", err)
+	}
+
+	newBond, err := nc.GetBond("bond0")
+	if err != nil {
+		t.Errorf("cannot get bond: %s", err)
+	}
+	if !reflect.DeepEqual(newBond.Common, eth0.Common) {
+		t.Errorf("invalid config, different from the configuration interface")
+	}
+}
+
+func TestRemoveBond(t *testing.T) {
+	c := map[string]Layout{}
+	ip, _ := ParseIP("192.168.1.100")
+	bond0 := &Bond{}
+	bond0.Addresses = []IP{*ip}
+	bond0.Interfaces = []string{"eth0", "eth1"}
+	c["bond0"] = bond0
+	nc, _ := GetConfig(c)
+	nc.RemoveBond("bond0", "eth0")
+
+	objs := nc.Flatten()
+
+	if !reflect.DeepEqual(objs["eth0"], bond0.Dump()) {
+		t.Errorf("invalid config, different from the bonding interface")
+	}
+
+	if _, ok := objs["bond0"]; ok {
+		t.Error("remove bonding failed")
 	}
 }

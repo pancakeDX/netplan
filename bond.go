@@ -1,6 +1,9 @@
 package netplan
 
-import "errors"
+import (
+	"errors"
+	"fmt"
+)
 
 // Bond represents a bond interface
 type Bond struct {
@@ -98,4 +101,18 @@ func (b *Bond) SetDhcp4(enable bool) {
 
 func (b *Bond) SetGateway4(ip IP) {
 	b.Gateway4 = ip
+}
+
+func (b *Bond) Copy(conf Layout) error {
+	switch v := conf.(type) {
+	case *Ethernet:
+		b.Common = v.Common
+	default:
+		return fmt.Errorf("invalid type, only Ethernet will be accept")
+	}
+	return nil
+}
+
+func (b *Bond) Dump() *Ethernet {
+	return &Ethernet{Common: b.Common}
 }
